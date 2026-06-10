@@ -1,4 +1,5 @@
 const redisClient = require('../../redis/client');
+const { joinQueue, leaveQueue } = require('../matchmaker/queue');
 
 const ONLINE_USERS_KEY = 'online_users';
 
@@ -39,12 +40,45 @@ function registerSocketHandlers(io) {
       }
     });
 
+    // ── join-queue ───────────────────────────────────────────────────────────
+    // Payload: { userId: string, rating: number }
+    socket.on('join-queue', async ({ userId, rating } = {}) => {
+      if (!userId || rating == null) {
+        socket.emit('queue-error', { message: 'join-queue requires userId and rating' });
+        return;
+      }
+      try {
+        await joinQueue(userId, Number(rating));
+        socket.emit('queue-joined', { userId, rating });
+        console.log(`[socket] join-queue: userId=${userId} rating=${rating}`);
+      } catch (err) {
+        console.error(`[socket] join-queue error for ${userId}:`, err.message);
+        socket.emit('queue-error', { message: err.message });
+      }
+    });
+
+    // ── leave-queue ──────────────────────────────────────────────────────────
+    // Payload: { userId: string }
+    socket.on('leave-queue', async ({ userId } = {}) => {
+      if (!userId) return;
+      try {
+        await leaveQueue(userId);
+        socket.emit('queue-left', { userId });
+        console.log(`[socket] leave-queue: userId=${userId}`);
+      } catch (err) {
+        console.error(`[socket] leave-queue error for ${userId}:`, err.message);
+      }
+    });
+
     // ── disconnect ──────────────────────────────────────────────────────────
     socket.on('disconnect', async (reason) => {
       const userId = socketToUser.get(socket.id);
 
       if (userId) {
         try {
+          // Auto-remove from queue on disconnect so they don't stay as phantom players
+          await leaveQueue(userId).catch(() => {});
+
           // Only remove the entry if this socket is still the current one
           // (guards against a race where the user reconnected quickly)
           const currentSocketId = await redisClient.hget(ONLINE_USERS_KEY, userId);
@@ -65,3 +99,4 @@ function registerSocketHandlers(io) {
 }
 
 module.exports = { registerSocketHandlers };
+
