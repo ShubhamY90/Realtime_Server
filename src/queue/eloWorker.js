@@ -64,7 +64,28 @@ const eloWorker = new Worker(
       return;
     }
 
-    // Win/Loss: Calculate new ratings
+    // Private matches: only update match counters, never touch rating
+    if (matchType === 'private') {
+      console.log(`[eloWorker] 🔒 Private match — skipping ELO calculation, counters only`);
+
+      await updateRatings({
+        roomId,
+        matchId,
+        isDraw:          false,
+        matchType,
+        winnerId,
+        loserId,
+        newWinnerRating: winnerRating,  // unchanged
+        newLoserRating:  loserRating,   // unchanged
+        winnerDelta:     0,
+        loserDelta:      0,
+      });
+
+      console.log(`[eloWorker] ✅ Private match counters updated for roomId=${roomId}`);
+      return;
+    }
+
+    // Public matches only — Calculate new ratings
     const { newWinnerRating, newLoserRating, winnerDelta, loserDelta } =
       calculateElo(winnerRating, loserRating);
 
