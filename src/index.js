@@ -24,11 +24,15 @@ const corsOrigins = [
   ...configuredOrigins
 ];
 
+const corsOptions = {
+  origin: corsOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
+
 const io = new Server(server, {
-  cors: {
-    origin: corsOrigins,
-    methods: ['GET', 'POST'],
-  },
+  cors: corsOptions,
 });
 
 // ── Health check ──────────────────────────────────────────────────────────────
