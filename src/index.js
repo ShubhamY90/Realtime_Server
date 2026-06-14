@@ -20,6 +20,7 @@ const corsOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
   "https://code-duel-f.vercel.app",
+  "https://cod3duel.netlify.app",
   ...configuredOrigins
 ];
 
