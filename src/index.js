@@ -21,8 +21,25 @@ const io = new Server(server, {
 });
 
 // ── Health check ──────────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (_req, res) => {
+  const health = {
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    services: {},
+  };
+
+  // Redis ping
+  try {
+    const pong = await redisClient.ping();
+    health.services.redis = pong === 'PONG' ? 'CONNECTED' : 'DEGRADED';
+  } catch (err) {
+    health.services.redis = 'ERROR';
+    health.status = 'DEGRADED';
+  }
+
+  const statusCode = health.status === 'UP' ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 // ── Socket.IO ─────────────────────────────────────────────────────────────────

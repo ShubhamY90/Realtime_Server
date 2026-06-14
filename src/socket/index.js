@@ -70,6 +70,42 @@ function registerSocketHandlers(io) {
       }
     });
 
+    // ── send-challenge ───────────────────────────────────────────────────────
+    // Sends a friend challenge notification to the target user.
+    // Payload: { fromUserId, fromDisplayName, fromPhotoURL, toUserId, roomCode, roomId }
+    socket.on('send-challenge', async ({ fromUserId, fromDisplayName, fromPhotoURL, toUserId, roomCode, roomId } = {}) => {
+      if (!fromUserId || !toUserId || !roomCode || !roomId) {
+        socket.emit('challenge-error', { message: 'send-challenge requires fromUserId, toUserId, roomCode, roomId' });
+        return;
+      }
+      try {
+        // Emit to the target user's room (they joined a room named after their userId on register)
+        io.to(toUserId).emit('challenge-received', {
+          fromUserId,
+          fromDisplayName: fromDisplayName || 'A friend',
+          fromPhotoURL: fromPhotoURL || null,
+          roomCode,
+          roomId,
+        });
+        console.log(`[socket] challenge sent: from=${fromUserId} to=${toUserId} roomCode=${roomCode}`);
+        socket.emit('challenge-sent', { toUserId, roomCode });
+      } catch (err) {
+        console.error(`[socket] send-challenge error:`, err.message);
+      }
+    });
+
+    // ── decline-challenge ────────────────────────────────────────────────────
+    // Notifies the challenger that the friend declined.
+    // Payload: { fromUserId, toUserId, toDisplayName }
+    socket.on('decline-challenge', ({ fromUserId, toUserId, toDisplayName } = {}) => {
+      if (!fromUserId || !toUserId) return;
+      io.to(fromUserId).emit('challenge-declined', {
+        byUserId: toUserId,
+        byDisplayName: toDisplayName || 'Your friend',
+      });
+      console.log(`[socket] challenge declined: by=${toUserId} to=${fromUserId}`);
+    });
+
     // ── disconnect ──────────────────────────────────────────────────────────
     socket.on('disconnect', async (reason) => {
       const userId = socketToUser.get(socket.id);

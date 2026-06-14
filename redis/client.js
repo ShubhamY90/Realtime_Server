@@ -1,13 +1,19 @@
 const Redis = require('ioredis');
 require('dotenv').config();
 
-const client = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+// Upstash (and any rediss:// endpoint) requires TLS
+const tlsOptions = redisUrl.startsWith('rediss://') ? { tls: {} } : {};
+
+const client = new Redis(redisUrl, {
   lazyConnect: true,
   retryStrategy(times) {
     const delay = Math.min(times * 100, 3000);
     return delay;
   },
   maxRetriesPerRequest: null,
+  ...tlsOptions,
 });
 
 client.on('connect', () => {

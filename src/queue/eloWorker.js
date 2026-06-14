@@ -2,10 +2,20 @@ const { Worker, Queue } = require('bullmq');
 const { calculateElo }  = require('../elo');
 const { updateRatings } = require('../http/backend');
 
-const connection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: Number(process.env.REDIS_PORT) || 6379,
-};
+const connection = (() => {
+  const url = process.env.REDIS_URL || '';
+  if (url.startsWith('rediss://') || url.startsWith('redis://')) {
+    const parsed = new URL(url);
+    return {
+      host:     parsed.hostname,
+      port:     Number(parsed.port) || (url.startsWith('rediss://') ? 6380 : 6379),
+      password: parsed.password || undefined,
+      username: parsed.username || undefined,
+      tls:      url.startsWith('rediss://') ? {} : undefined,
+    };
+  }
+  return { host: process.env.REDIS_HOST || 'localhost', port: Number(process.env.REDIS_PORT) || 6379 };
+})();
 
 // ── ELO worker ────────────────────────────────────────────────────────────────
 /**
