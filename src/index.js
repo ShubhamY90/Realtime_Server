@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3001;
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.BACKEND_URL || 'http://localhost:3000',
+    origin: ["http://localhost:5173", "http://localhost:3000"],
     methods: ['GET', 'POST'],
   },
 });
