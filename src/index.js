@@ -4,7 +4,7 @@ const express = require('express');
 const { Server } = require('socket.io');
 const redisClient = require('../redis/client');
 const { registerSocketHandlers } = require('./socket');
-const { startMatchmaker }        = require('./matchmaker');
+const { startMatchmaker, stopMatchmaker } = require('./matchmaker');
 const { startResultWorker } = require('./queue/resultWorker');
 const { eloWorker }         = require('./queue/eloWorker');
 
@@ -139,7 +139,7 @@ async function start() {
     forceExit.unref(); // don't let this timeout keep the process alive on its own
 
     // 1. Stop matchmaker loop
-    clearInterval(matchmakerHandle);
+    stopMatchmaker();
 
     // 2. Disconnect all Socket.IO clients — this unblocks server.close()
     await io.close();

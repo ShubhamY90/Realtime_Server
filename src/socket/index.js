@@ -1,5 +1,6 @@
 const redisClient = require('../../redis/client');
 const { joinQueue, leaveQueue } = require('../matchmaker/queue');
+const { checkAndStart } = require('../matchmaker');
 
 const ONLINE_USERS_KEY = 'online_users';
 
@@ -51,6 +52,7 @@ function registerSocketHandlers(io) {
         await joinQueue(userId, Number(rating));
         socket.emit('queue-joined', { userId, rating });
         console.log(`[socket] join-queue: userId=${userId} rating=${rating}`);
+        checkAndStart(io);
       } catch (err) {
         console.error(`[socket] join-queue error for ${userId}:`, err.message);
         socket.emit('queue-error', { message: err.message });

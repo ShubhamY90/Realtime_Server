@@ -7,6 +7,9 @@ const ONLINE_KEY    = 'online_users';
 const RATING_WINDOW = 200;   // max rating gap for a valid match
 const TICK_INTERVAL = 2000;  // ms between queue scans
 
+let intervalHandle  = null;
+let ioInstance      = null;
+
 // ── Lua script ────────────────────────────────────────────────────────────────
 // Atomically verifies both players are still in the queue (and their scores
 // haven't changed since we read them), then removes both in one round-trip.
@@ -144,7 +147,11 @@ async function matchmakingTick(io) {
     players.push({ userId: raw[i], rating: Number(raw[i + 1]) });
   }
 
-  if (players.length < 2) return; // 0 or 1 players — nothing to match, exit silently
+  if (players.length < 2) {
+    console.log(`[matchmaker] Queue has ${players.length} players. Stopping idle matchmaking loop.`);
+    stopMatchmaker();
+    return;
+  }
 
   // Find first adjacent pair within the rating window
   for (let i = 0; i < players.length - 1; i++) {
@@ -195,10 +202,28 @@ function startMatchmaker(io) {
   console.log(
     `[matchmaker] started — tick every ${TICK_INTERVAL}ms, window ±${RATING_WINDOW}`
   );
-  const handle = setInterval(() => matchmakingTick(io), TICK_INTERVAL);
-  // Prevent the interval from keeping Node alive if everything else exits
-  if (handle.unref) handle.unref();
-  return handle;
+  ioInstance = io;
+  return checkAndStart(io);
 }
 
-module.exports = { startMatchmaker, onMatchFound };
+function checkAndStart(io) {
+  const ioToUse = io || ioInstance;
+  ioInstance = ioToUse;
+
+  if (intervalHandle) return intervalHandle;
+
+  console.log(`[matchmaker] Starting matchmaking loop`);
+  intervalHandle = setInterval(() => matchmakingTick(ioToUse), TICK_INTERVAL);
+  if (intervalHandle.unref) intervalHandle.unref();
+  return intervalHandle;
+}
+
+function stopMatchmaker() {
+  if (intervalHandle) {
+    console.log('[matchmaker] Stopping matchmaking loop');
+    clearInterval(intervalHandle);
+    intervalHandle = null;
+  }
+}
+
+module.exports = { startMatchmaker, checkAndStart, stopMatchmaker, onMatchFound };
